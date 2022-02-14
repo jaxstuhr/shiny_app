@@ -5,13 +5,14 @@ library(readxl)
 library(shinythemes)
 
 # Pull in data
-midden_data = read_xlsx(here("data", "midden_data.xlsx"))
-sectors = c("Chemicals", "Iron and Steel", "Aluminum", "Food and Bevarage", "Cement", "Electronics", "Pulp and Paper")
+sample_mecs = read_xlsx(here("data", "sample_mecs_data.xlsx"))
+long_mecs = sample_mecs %>% 
+    gather(fuel, value, 4:9)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
      theme = shinytheme("sandstone"),
-    navbarPage("Industrial Decarbonization: BAT Efficiency Potentials", 
+    navbarPage("US Industrial Decarbonization: BAT Efficiency Potentials", 
     
        ### START Tab 1                   
        tabPanel("Background on Data and Summary of Analyses"),
@@ -48,7 +49,7 @@ ui <- fluidPage(
                                     ), # end slider input
                         checkboxGroupInput(inputId = "pick_end_uses",
                                            label = "Select End Uses: ",
-                                           choices = unique(midden_data$main_output_name)
+                                           choices = unique(long_mecs$end_use)
                                            ) # END CHECKBOX GROUP INPUT
                     ), # END OF SIDEBAR PANEL
                     mainPanel(
@@ -60,18 +61,18 @@ ui <- fluidPage(
        ### End Tab 3
        
        ### Start Tab 4
-       tabPanel("Nation Wide Energy Consumption Heat Map",
+       tabPanel("Energy Reduction Potential by End Use for Selected Sector",
                 sidebarLayout(
                     sidebarPanel(
                         "Sector Selector Radio Butons", 
-                        radioButtons(inputId = "pick_sectors",
-                                           label = "Choose Sectors: ",
-                                           choices = sectors
+                        radioButtons(inputId = "select_sector",
+                                           label = "Choose Sector:",
+                                           choices = unique(long_mecs$naics_code)
                         ) # END CHECKBOX GROUP INPUT
                     ), # END OF SIDEBAR PANEL
                     mainPanel(
-                        "Heat Map Output Here", 
-                        plotOutput("heat_map")
+                        "Pie Chart Output Here", 
+                        plotOutput("pie_chart")
                     )
                 ) # END OF SIDEBAR LAYOUT), 
        ), # END OF TABPANEL "heat map"),
@@ -101,22 +102,33 @@ server = function(input, output) {
     
     ### Start Tab 3 Reactive and Output ### 
     decarb_reactive = reactive({
-        midden_data %>%
-            filter(main_output_name %in% input$pick_end_uses)
+        long_mecs %>%
+            filter(end_use %in% input$pick_end_uses) %>% 
+            filter(scenario == "Differential") %>% 
+            group_by(end_use, fuel) %>% 
+            summarise(value = sum(value) * input$adpt_rate)
     }) # END "decarb_reactive"
     output$decarb_plot = renderPlot(
-        ggplot(data = decarb_reactive(), aes(x = main_output_name, y = input_1_amount)) +
-            geom_col(aes(color = main_output_name))
+        ggplot(data = decarb_reactive(), aes(x = end_use, y = value, fill = fuel)) +
+            geom_col(position = "dodge")
     ) # END "output$sw_plot
     ### End Tab 3 Reactive and Output ### 
     
     ### Start Tab 4 Reactive and Output ### 
-    heat_map_reactive = reactive({
-        midden_data %>%
-            filter(main_output_name %in% input$sectors)
+    pie_chart_reactive = reactive({
+        long_mecs %>%
+            filter(naics_code == input$select_sector) %>% 
+            filter(scenario == "Differential") %>% 
+            filter(end_use != "TOTAL FUEL CONSUMPTION") %>% 
+            group_by(end_use) %>% 
+            summarise(value = sum(value))
     }) # END "heat_map_reactive"
-    output$heat_map = renderPlot(
-        ggplot() 
+    output$pie_chart = renderPlot(
+        ggplot(data = pie_chart_reactive(), aes(x = "", y = value, fill = end_use)) +
+            geom_bar(stat="identity", width=1, color="white") +
+            coord_polar("y", start=0) + 
+            theme_void() +
+            geom_text(aes(label = value), color = "white", size=6) 
     )
     ### End Tab 4 Reactive and Output ### 
     

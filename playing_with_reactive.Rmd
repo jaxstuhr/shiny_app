@@ -1,0 +1,38 @@
+---
+title: "playing with reactive"
+author: "Jaxon Stuhr"
+date: "2/13/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+library(readxl)
+```
+
+```{r}
+sample_mecs = read_xlsx(here("data", "sample_mecs_data.xlsx"))
+long_mecs = sample_mecs %>% 
+    gather(fuel_scenario, value, 4:9)
+```
+
+```{r}
+test_decarb = long_mecs %>%
+            filter(fuel_scenario %in% c("net_electricity_demand", "residual_fuel_oil", "distillate_fuel_oil_and_diesel_fuel", 
+                                        "nat_gas", "hgl_excluding_ng", "coal_excluding_coke_and_breeze")) %>% 
+            group_by(end_use, fuel_scenario) %>% 
+  summarise(value = sum(value))
+```
+
+```{r}
+test_pie = long_mecs %>%
+            filter(naics_code == 311) %>% 
+            filter(scenario == "Differential") %>% 
+            group_by(end_use) %>% 
+            summarise(value = sum(value)) %>% 
+  filter(end_use != "T")
+```
+
+
