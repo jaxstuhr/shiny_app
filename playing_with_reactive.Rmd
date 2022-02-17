@@ -35,4 +35,14 @@ test_pie = long_mecs %>%
   filter(end_use != "T")
 ```
 
+```{r}
+top_20 = sample_mecs %>% 
+  filter(scenario == "Current Energy Consumption") %>% 
+  filter(end_use == "TOTAL FUEL CONSUMPTION") %>% 
+  mutate(total = net_electricity_demand + residual_fuel_oil + distillate_fuel_oil_and_diesel_fuel + 
+           nat_gas + hgl_excluding_ng + coal_excluding_coke_and_breeze) %>% 
+ slice_max(order_by = total, n = 20)
+```
+
+
 
