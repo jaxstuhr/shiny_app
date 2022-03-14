@@ -1,0 +1,11 @@
+name: shiny_app
+title:
+username:
+account: jaxon-stuhr-shiny
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5853563
+bundleId: 5684170
+url: https://jaxon-stuhr-shiny.shinyapps.io/shiny_app/
+when: 1647298856.16511
+lastSyncTime: 1647298856.16511

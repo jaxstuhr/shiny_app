@@ -10,12 +10,25 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(here)
 library(readxl)
+library(forcats)
+library(broom)
+library(janitor)
+library(sf)
+library(tmap)
 ```
+
+```{r}
+naics_labels = read_xlsx(here("data", "naics_codes.xlsx")) %>% 
+  select(naics_code = "2017 NAICS US   Code", name = "2017 NAICS US Title")
+
+```
+
 
 ```{r}
 sample_mecs = read_xlsx(here("data", "sample_mecs_data.xlsx"))
 long_mecs = sample_mecs %>% 
-    gather(fuel_scenario, value, 4:9)
+    gather(fuel_scenario, value, 4:9) %>% 
+    merge(naics_labels, by = "naics_code")
 ```
 
 ```{r}
@@ -37,12 +50,65 @@ test_pie = long_mecs %>%
 
 ```{r}
 top_20 = sample_mecs %>% 
-  filter(scenario == "Current Energy Consumption") %>% 
-  filter(end_use == "TOTAL FUEL CONSUMPTION") %>% 
-  mutate(total = net_electricity_demand + residual_fuel_oil + distillate_fuel_oil_and_diesel_fuel + 
-           nat_gas + hgl_excluding_ng + coal_excluding_coke_and_breeze) %>% 
- slice_max(order_by = total, n = 20)
+    filter(scenario == "Current Energy Consumption") %>% 
+    filter(end_use == "TOTAL FUEL CONSUMPTION") %>% 
+    mutate(total = net_electricity_demand + residual_fuel_oil + distillate_fuel_oil_and_diesel_fuel + 
+               nat_gas + hgl_excluding_ng + coal_excluding_coke_and_breeze) %>% 
+    slice_max(order_by = total, n = 20) %>% 
+    gather(fuel, value, 4:10) %>% 
+    merge(naics_labels, by = "naics_code") %>% 
+    mutate(name = fct_reorder(name, value, .fun='sum'))
 ```
+
+```{r}
+ggplot(data = top_20, aes(x = name, y = value)) + 
+            geom_col(position = "dodge", fill = "#00BFCA", color = "black") +
+            coord_flip()
+```
+
+```{r}
+# read in ca counties data (chp) file and clean names
+us_regions_sf = read_sf(here("data", "us_regions", "jaxon_conus.shp"))
+# subset county name, land area, and geom
+```
+
+```{r}
+regions_sf_sub = us_regions_sf %>%
+  clean_names() %>% 
+  select(region = name)
+```
+
+```{r}
+regional_mecs = read_xlsx(here("data", "regional_mecs_data.xlsx"))
+regional_totals = regional_mecs %>% 
+  filter(end_use == "TOTAL FUEL CONSUMPTION") %>% 
+  mutate(net_electricity_demand = as.numeric(net_electricity_demand), 
+         residual_fuel_oil = as.numeric(residual_fuel_oil), 
+         diesel_fuel = as.numeric(diesel_fuel),
+         gas = as.numeric(gas),
+         natural_gas = as.numeric(natural_gas),
+         coke_and_breeze = as.numeric(coke_and_breeze))# %>% 
+  #mutate(total = net_electricity_demand + residual_fuel_oil + diesel_fuel + gas + natural_gas + coke_and_breeze)
+```
+
+```{r}
+full_sf = merge(regions_sf_sub, regional_totals, by = "region") %>% 
+    gather(fuel, value, 3:9) %>% 
+  filter(fuel %in% c("net_electricity_demand", "diesel_fuel")) %>% 
+  group_by(region) %>% 
+  summarise(value = sum(value))
+```
+
+
+```{r}
+# ggplot choropleth map
+ggplot() + 
+  geom_sf(data = full_sf, aes(fill = value))  + 
+  geom_sf_label(data = full_sf, aes(label = region)) +
+  theme_minimal() + 
+  labs(x = "", y = "")
+```
+
 
 
 
