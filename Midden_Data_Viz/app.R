@@ -7,12 +7,13 @@ library(forcats)
 library(broom)
 library(janitor)
 library(sf)
-library(tmap)
+#library(tmap)
 
 # Pull in data
-sample_mecs = read_xlsx(here("data", "sample_mecs_data.xlsx"))
+#sample_mecs = read_xlsx(here("data", "sample_mecs_data.xlsx"))
+sample_mecs = read_xlsx("data/sample_mecs_data.xlsx")
 
-naics_labels = read_xlsx(here("data", "naics_codes.xlsx")) %>% 
+naics_labels = read_xlsx("data/naics_codes.xlsx") %>% 
     select(naics_code = "2017 NAICS US   Code", name = "2017 NAICS US Title")
 
 long_mecs = sample_mecs %>% 
@@ -30,13 +31,13 @@ top_15 = sample_mecs %>%
     mutate(name = fct_reorder(name, value, .fun='sum'))
 
 
-us_regions_sf = read_sf(here("data", "us_regions", "jaxon_conus.shp"))
+us_regions_sf = read_sf("data/us_regions/jaxon_conus.shp")
 
 regions_sf_sub = us_regions_sf %>%
     clean_names() %>% 
     select(region = name)
 
-regional_mecs = read_xlsx(here("data", "regional_mecs_data.xlsx"))
+regional_mecs = read_xlsx("data/regional_mecs_data.xlsx")
 
 regional_totals = regional_mecs %>% 
     filter(end_use == "TOTAL FUEL CONSUMPTION") %>% 
@@ -61,7 +62,7 @@ ui <- fluidPage(
                 sidebarLayout(
                     sidebarPanel(
                         strong("Data Background"),
-                        p("This analyses visualizes the total potential energy savings available
+                        p("These analyses visualize the total potential energy savings available
                           to the US manufacturing sector through adoption of best available energy-effficiency
                           measures. The primary data source is the Energy Information Administations 
                           (EIA) Manufacturing Energy Consumption Surveys (MECS). These surveys provide the energy 
@@ -73,13 +74,17 @@ ui <- fluidPage(
                           systems and a review of literature on energy efficiency improvement options."),
                         p("The first figure (Tab 2) shows energy consumption by fuel type for the four US census regions. Subsequent tabs display 
                           the current (1518) energy consumption by sector for the most intensive sectors, savings potential by end use and fuel type 
-                          with a user-defined BAT adoption rate, and a pite-chart of fuel_types with the greatest savings potential for a given end use."),
-                        p("Data collection and analyses was performed by Jaxon Stuhr of the UCSB Bren School."),
-                        strong("Data Citation:"),
-                        p("cite MECS, energetics footprints, energy star, other literature here")
+                          with a user-defined BAT adoption rate, and a pie-chart of fuel types with the greatest savings potential for a given end use."),
+                        p("Data collection and analyses was performed by Jaxon Stuhr at the UCSB Bren School."),
+                        strong("References"),
+                        p("(1) U.S. Energy Information Administration (EIA). Manufacturing Energy Consumption Survey (MECS) - Data. February 23, 2021."),
+                        p("(2) Advanced Manufacturing Office Energetics. Manufacturing Energy and Carbon Footprints (2018 MECS); Office of ENERGY EFFICIENCY & RENEWABLE ENERGY, 2022."),
+                        p("(3) United States Census Bureau. 2017 NAICS Index File. 2017.
+")
+
                     ), # END OF SIDEBAR PANEL
                     mainPanel(
-                        img(src = "industry_pic.jpg")
+                        img(src = "industry_pic.jpg", width = 800)
                         #"Current Total Energy Usage of Top 15 Sectors",
                         #plotOutput("total_consumption")
                     )
@@ -176,7 +181,7 @@ ui <- fluidPage(
        ### End Tab 4
        
        ### Start Tab 5
-       tabPanel("Energy Reduction Potential by Fuel Type for Selected End Use",
+       tabPanel("National Energy Reduction Potential by Fuel Type for Selected End Use (All Sectors)",
                 sidebarLayout(
                     sidebarPanel(
                         "Sector Selector Radio Butons", 
@@ -240,7 +245,10 @@ server = function(input, output) {
             filter(name == input$selected_naics_code_2) %>% 
             filter(scenario %in% c("Current Energy Consumption", "Adoption of BATs")) %>% 
             group_by(end_use, scenario) %>% 
-            summarise(value = sum(value) * input$adpt_rate_1)
+            summarise(value = ifelse(scenario == "Adoption of BATs",
+                                     sum(value) * 1.49 * (1 - input$adpt_rate_1/100) + sum(value) * input$adpt_rate_1/100,
+                                     sum(value)
+            ))
     }) # END "decarb_reactive"
     output$decarb_plot = renderPlot(
         ggplot(data = decarb_reactive(), aes(x = end_use, y = value, fill = scenario)) +
@@ -257,7 +265,10 @@ server = function(input, output) {
             filter(name == input$selected_naics_code_3) %>% 
             filter(scenario %in% c("Current Energy Consumption", "Adoption of BATs")) %>% 
             group_by(fuel, scenario) %>% 
-            summarise(value = sum(value) * input$adpt_rate_2)
+            summarise(value = ifelse(scenario == "Adoption of BATs",
+                                     sum(value) * 1.49 * (1 - input$adpt_rate_2/100) + sum(value) * input$adpt_rate_2/100,
+                                     sum(value)
+            ))
     }) # END "decarb_reactive"
     output$fuel_plot = renderPlot(
         ggplot(data = fuel_type_reactive(), aes(x = fuel, y = value, fill = scenario)) +
@@ -287,7 +298,6 @@ server = function(input, output) {
     ### End Tab 5 Reactive and Output ### 
     
 }
-
 # Run the application 
 shinyApp(ui = ui, server = server)
 

@@ -1,0 +1,13 @@
+name: Midden_Data_Viz
+title: Midden_Data_Viz
+username:
+account: jaxon-stuhr-shiny
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 5853823
+bundleId: 5687466
+url: https://jaxon-stuhr-shiny.shinyapps.io/Midden_Data_Viz/
+when: 1647363240.76604
+lastSyncTime: 1647363240.76604
+asMultiple: FALSE
+asStatic: FALSE
